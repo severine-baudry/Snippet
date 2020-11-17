@@ -52,7 +52,46 @@ def tokenize_output(output_text):
 
 
 # In[33]:
+from collections import OrderedDict
+def parse_nn_performances(split_lines):
+    res = OrderedDict( )
+    for line in split_lines:
+        if 'VALID' in line :
+            res.setdefault('VALID', OrderedDict())
+            perf_type = 'VALID'
+        elif 'TEST' in line :
+            res.setdefault('TEST', OrderedDict())
+            perf_type = 'TEST'            
+        else :
+            perf_type = 'TRAIN'
+            res.setdefault('TRAIN', OrderedDict())
+        if not 'Epoch' in line :
+            print("not a result line")
+            continue
+        d_index = {}
+        l_names = [ 'loss', 'accuracy', 'Epoch']
+        d_type = {'loss':float, 'accuracy':float, 'Epoch':int }
+        d_val = {}
+        for name in l_names :
+            d_index[name] = line.index(name)
+        if d_index['loss'] == -1 and d_index['accuracy'] == -1 :
+            print("error : not a performance line", line)
+        else :
+            try :
+                for name, index in d_index.items():
+                    if index > -1 :
+                        d_val[name] = d_type[name](line[index+1])
+            except ValueError :
+                print("error conversion", name, index, line)
+            else :
+                epoch = d_val["Epoch"]
+                del(d_val['Epoch'])
+                for name, perf in d_val.items() :
+                    res[perf_type].setdefault(name, OrderedDict() )
+                    res[perf_type][name][ epoch] = perf
 
+    return res
+                      
 
 import matplotlib.pyplot as plt
 def plot_performance(results, metric):

@@ -9,6 +9,7 @@ import os
 import sys
 import argparse
 from git import Repo
+from collections import OrderedDict
 
 
 # In[3]:
@@ -65,9 +66,8 @@ def plot_performance(results, metric):
 # In[34]:
 
 
-def extract_notebook_train_valid(notebook_name, l_markers = ["Begin Training", "TEST" ] ):
-    with open(notebook_name) as f :
-        notebook = json.load(f)
+def extract_perf_(notebook_f, l_markers = ["Begin Training", "TEST" ] ):
+        notebook = json.load(notebook_f)
         res = OrderedDict()
         for output_mark in  l_markers :
             # find output cell beginning with output_mark
@@ -80,7 +80,12 @@ def extract_notebook_train_valid(notebook_name, l_markers = ["Begin Training", "
                 res.update(dict_result)
         return res
 
-
+def extract_notebook_train_valid(notebook_name, l_markers = ["Begin Training", "TEST" ]  ):
+    if type(notebook_name) is str :
+        with open(notebook_name) as f :
+            return extract_perf_(f, l_markers)
+    else :
+        return extract_perf_(notebook_name)
 # In[43]:
 
 
@@ -101,19 +106,17 @@ if __name__ == "__main__":
     
     repo = Repo(l_args.directory)
     head = repo.head.reference
-    git_log = head.log()
-    print(len(git_log))
-    for l in reversed(git_log):
-        print(l)
-    commit = repo.commit()
-    print("commit:", commit.hexsha, commit.message)
+
+    # iterate on the previous commits
     for commit in list( repo.iter_commits( max_count = 10) ) :
-        print(commit.hexsha[:5], commit.message)
+        sha = commit.hexsha
+        msg = commit.message
+        # files in the commit
         for tr in commit.tree:
-            print("\t", tr, type(tr), tr.name)
-            if tr.name == "Transfer_Learning_Solution_copy.ipynb":
-                toto = json.load(tr.data_stream)
-                print(type(toto))
+            # load the notebook
+            if tr.name == l_args.notebook:
+                print(type(tr.data_stream))
+                results = extract_notebook_train_valid(tr.data_stream)
             
     
 

@@ -10,6 +10,7 @@ import sys
 import argparse
 from git import Repo
 from collections import OrderedDict
+import time
 
 
 # In[3]:
@@ -151,13 +152,16 @@ if __name__ == "__main__":
     for commit in list( repo.iter_commits( ) ) :
         sha = commit.hexsha
         msg = commit.message
+        dat = commit.authored_date
+        strdate = time.strftime("%d/%m/%Y %H:%M", time.gmtime(dat))
+        # dat = commit.commited_date
         # files in the commit
         for tr in commit.tree:
             # load the notebook
             if tr.name == l_args.notebook:
-                print(sha[:7], msg)
+                print(sha[:7], strdate, msg )
                 results = extract_notebook_train_valid(tr.data_stream)
-                res_dict = OrderedDict( [("sha", sha), ("msg", msg), ("res", results) ] )
+                res_dict = OrderedDict( [("sha", sha), ("date", strdate), ("msg", msg), ("res", results) ] )
                 l_results.append(res_dict)
     with open(l_args.output, "w") as fs :
         json.dump(l_results, fs, indent = 2)

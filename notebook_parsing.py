@@ -11,7 +11,8 @@ import argparse
 from git import Repo
 from collections import OrderedDict
 import time
-
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # In[3]:
 
@@ -133,6 +134,15 @@ def test_notebook_parsing():
     results = extract_notebook_train_valid("/home/severine/MOOCS/UDACITY/DEEP_LEARNING/TP/P2_dog_classification/Transfer_Learning_Solution_copy.ipynb")
     plot_performance(results, "loss")                 
     plot_performance(results, "accuracy")
+
+def extract_metric_phase(l_results, phase, metric):
+    df_result = pd.DataFrame()
+    for result in result :
+        sha = result["sha"][:5]        
+        dres = result[phase][metric]
+        df_current = pd.DataFrame.from_dict(dres, orient = 'index')
+        df_result = pd.concat([df_current], axis = 1)
+    return df_result
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

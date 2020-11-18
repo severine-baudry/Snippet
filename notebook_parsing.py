@@ -135,9 +135,9 @@ def test_notebook_parsing():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", dest = "directory")
-    parser.add_argument("-nb", dest = "notebook")
-    parser.add_argument("-o", dest = "output")
+    parser.add_argument("-d", dest = "directory", required = True)
+    parser.add_argument("-nb", dest = "notebook", required = True)
+    parser.add_argument("-o", dest = "output", required = True)
     l_args = parser.parse_args()
     
     print(l_args.notebook)
@@ -146,16 +146,22 @@ if __name__ == "__main__":
     repo = Repo(l_args.directory)
     head = repo.head.reference
 
+    l_results = []
     # iterate on the previous commits
-    for commit in list( repo.iter_commits( max_count = 10) ) :
+    for commit in list( repo.iter_commits( ) ) :
         sha = commit.hexsha
         msg = commit.message
         # files in the commit
         for tr in commit.tree:
             # load the notebook
             if tr.name == l_args.notebook:
-                print(type(tr.data_stream))
+                print(sha[:7], msg)
                 results = extract_notebook_train_valid(tr.data_stream)
-            
+                res_dict = OrderedDict( [("sha", sha), ("msg", msg), ("res", results) ] )
+                l_results.append(res_dict)
+    with open(l_args.output, "w") as fs :
+        json.dump(l_results, fs, indent = 2)
     
+
+#python notebook_parsing.py  -d ../P2_dog_classification/ -nb Transfer_Learning_Solution_copy.ipynb  -o dogs_transfer_learning.json
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[38]:
+# In[ ]:
 
 
 import json
@@ -14,7 +14,8 @@ import time
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# In[3]:
+
+# In[ ]:
 
 
 def find_output_marking(notebook, output_mark):
@@ -31,7 +32,7 @@ def find_output_marking(notebook, output_mark):
                         return output["text"]
 
 
-# In[5]:
+# In[ ]:
 
 
 import re
@@ -53,7 +54,9 @@ def tokenize_output(output_text):
     return res
 
 
-# In[33]:
+# In[ ]:
+
+
 from collections import OrderedDict
 def parse_nn_performances(split_lines):
     res = OrderedDict( )
@@ -91,9 +94,12 @@ def parse_nn_performances(split_lines):
                 for name, perf in d_val.items() :
                     res[perf_type].setdefault(name, OrderedDict() )
                     res[perf_type][name][ epoch] = perf
-
     return res
                       
+
+
+# In[ ]:
+
 
 import matplotlib.pyplot as plt
 def plot_performance(results, metric):
@@ -104,7 +110,7 @@ def plot_performance(results, metric):
     plt.title(metric)    
 
 
-# In[34]:
+# In[ ]:
 
 
 def extract_perf_(notebook_f, l_markers = ["Begin Training", "TEST" ] ):
@@ -121,6 +127,10 @@ def extract_perf_(notebook_f, l_markers = ["Begin Training", "TEST" ] ):
                 res.update(dict_result)
         return res
 
+
+# In[ ]:
+
+
 def extract_notebook_train_valid(notebook_name, l_markers = ["Begin Training", "TEST" ]  ):
     if type(notebook_name) is str :
         with open(notebook_name) as f :
@@ -130,33 +140,48 @@ def extract_notebook_train_valid(notebook_name, l_markers = ["Begin Training", "
 # In[43]:
 
 
+# In[ ]:
+
+
 def test_notebook_parsing():
     results = extract_notebook_train_valid("/home/severine/MOOCS/UDACITY/DEEP_LEARNING/TP/P2_dog_classification/Transfer_Learning_Solution_copy.ipynb")
     plot_performance(results, "loss")                 
     plot_performance(results, "accuracy")
 
+
+# In[ ]:
+
+
 def extract_metric_phase(l_results, phase, metric):
     df_result = pd.DataFrame()
-    for result in result :
-        sha = result["sha"][:5]        
-        dres = result[phase][metric]
-        df_current = pd.DataFrame.from_dict(dres, orient = 'index')
-        df_result = pd.concat([df_current], axis = 1)
-    return df_result
+    df_commit_info = pd.DataFrame()
+    for result in l_results :
+        sha = result["sha"][:5]
+        #print(result["res"].keys())
+        try:
+            dres = result["res"][phase][metric]
+        except KeyError :
+            pass
+        else :
+            df_current = pd.DataFrame.from_dict(dres, orient = 'index', columns =[sha] )
+            #print(df_current)
+            df_result = pd.concat([df_current, df_result], axis = 1)
+            
+            df_commit = pd.DataFrame( [[result["msg"], result["date"]] ] , columns = ["message", "date"], index =[sha])
+            df_commit_info = pd.concat([df_commit, df_commit_info], axis = 0)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", dest = "directory", required = True)
-    parser.add_argument("-nb", dest = "notebook", required = True)
-    parser.add_argument("-o", dest = "output", required = True)
-    l_args = parser.parse_args()
-    
-    print(l_args.notebook)
-    print(l_args.output)
-    
-    repo = Repo(l_args.directory)
+    return df_result, df_commit_info
+
+
+# In[ ]:
+
+
+def all_commits_results(directory, notebook): 
+    '''
+    extract from all git versions of the notebook in directory the results
+    '''
+    repo = Repo(directory)
     head = repo.head.reference
-
     l_results = []
     # iterate on the previous commits
     for commit in list( repo.iter_commits( ) ) :
@@ -168,14 +193,65 @@ if __name__ == "__main__":
         # files in the commit
         for tr in commit.tree:
             # load the notebook
-            if tr.name == l_args.notebook:
+            if tr.name == notebook:
                 print(sha[:7], strdate, msg )
                 results = extract_notebook_train_valid(tr.data_stream)
                 res_dict = OrderedDict( [("sha", sha), ("date", strdate), ("msg", msg), ("res", results) ] )
                 l_results.append(res_dict)
+    return l_results
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    all_results = all_commits_results("../P2_dog_classification/", "Transfer_Learning_Solution_copy.ipynb")
+    valid_loss, commit_info = extract_metric_phase(all_results, "VALID", "loss")
+    print(valid_loss)
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    valid_loss.plot(title = "valid loss", figsize = (10,6))
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    pd.set_option('display.max_colwidth', 0)
+    print(commit_info)
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    valid_accuracy, commit_info = extract_metric_phase(all_results, "VALID", "accuracy")
+    plt.figure()
+    valid_accuracy.plot( title = "valid accuracy", figsize = (10,6))
+
+
+# **Exemple of execution**
+# 
+# python notebook_parsing.py  -d ../P2_dog_classification/ -nb Transfer_Learning_Solution_copy.ipynb  -o dogs_transfer_learning.json
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", dest = "directory", required = True)
+    parser.add_argument("-nb", dest = "notebook", required = True)
+    parser.add_argument("-o", dest = "output", required = True)
+    l_args = parser.parse_args()
+    
+    print(l_args.notebook)
+    print(l_args.output)
+    l_results = all_commits_results(l_args.directory, l_args.notebook)
     with open(l_args.output, "w") as fs :
         json.dump(l_results, fs, indent = 2)
     
-
-#python notebook_parsing.py  -d ../P2_dog_classification/ -nb Transfer_Learning_Solution_copy.ipynb  -o dogs_transfer_learning.json
 
